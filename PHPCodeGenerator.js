@@ -109,9 +109,12 @@ define(function (require, exports, module) {
 
             // AnnotationType
             if (elem.stereotype === "annotationType") {
-                fullPath = path + "/" + elem.name + ".php";
+                fullPath = path + "/" + elem.name + ".php.inc";
                 codeWriter = new CodeGenUtils.CodeWriter(this.getIndentString(options));
                 codeWriter.writeLine("<?php\n");
+                if (options.phpStrictMode) {
+                    codeWriter.writeLine("declare(strict_types = 1);\n");
+                }
                 this.writePackageDeclaration(codeWriter, elem, options);
                 codeWriter.writeLine();
                 this.writeAnnotationType(codeWriter, elem, options);
@@ -120,9 +123,12 @@ define(function (require, exports, module) {
 
                 // Class
             } else {
-                fullPath = path + "/" + elem.name + options.classExtension + ".php";
+                fullPath = path + "/" + elem.name + options.classExtension + ".php.inc";
                 codeWriter = new CodeGenUtils.CodeWriter(this.getIndentString(options));
                 codeWriter.writeLine("<?php\n");
+                if (options.phpStrictMode) {
+                    codeWriter.writeLine("declare(strict_types = 1);\n");
+                }
                 this.writePackageDeclaration(codeWriter, elem, options);
                 codeWriter.writeLine();
                 codeWriter.addSection("uses");
@@ -133,9 +139,12 @@ define(function (require, exports, module) {
 
             // Interface
         } else if (elem instanceof type.UMLInterface) {
-            fullPath = path + "/" + elem.name + options.interfaceExtension + ".php";
+            fullPath = path + "/" + elem.name + options.interfaceExtension + ".php.inc";
             codeWriter = new CodeGenUtils.CodeWriter(this.getIndentString(options));
             codeWriter.writeLine("<?php\n");
+            if (options.phpStrictMode) {
+                    codeWriter.writeLine("declare(strict_types = 1);\n");
+                }
             this.writePackageDeclaration(codeWriter, elem, options);
             codeWriter.writeLine();
             codeWriter.addSection("uses");
@@ -145,9 +154,12 @@ define(function (require, exports, module) {
 
             // Enum
         } else if (elem instanceof type.UMLEnumeration) {
-            fullPath = path + "/" + elem.name + ".php";
+            fullPath = path + "/" + elem.name + ".php.inc";
             codeWriter = new CodeGenUtils.CodeWriter(this.getIndentString(options));
             codeWriter.writeLine("<?php\n");
+            if (options.phpStrictMode) {
+                    codeWriter.writeLine("declare(strict_types = 1);\n");
+                }
             this.writePackageDeclaration(codeWriter, elem, options);
             codeWriter.writeLine();
             this.writeEnum(codeWriter, elem, options);
@@ -614,6 +626,7 @@ define(function (require, exports, module) {
         var _implements = this.getSuperInterfaces(elem);
         if (_implements.length > 0) {
             terms.push("implements " + _.map(_implements, function (e) {
+                console.log(e);
                 return e.name;
             }).join(", "));
         }
@@ -877,13 +890,13 @@ define(function (require, exports, module) {
      */
     PHPCodeGenerator.prototype.isAllowedTypeHint = function (type) {
         switch(type) {
-            case "bool":
+            // case "bool":
             case "boolean":
-            case "int":
+            // case "int":
             case "integer":
-            case "float":
+            // case "float":
             case "double":
-            case "string":
+            // case "string":
             case "resource":
             case "void":
                 return false;
