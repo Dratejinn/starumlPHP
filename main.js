@@ -41,8 +41,8 @@ define(function (require, exports, module) {
         UML                 = app.getModule("uml/UML");
 
     var CodeGenUtils        = require("CodeGenUtils"),
-        PHPPreferences     = require("PHPPreferences"),
-        PHPCodeGenerator   = require("PHPCodeGenerator");
+        PHPPreferences      = require("PHPPreferences"),
+        PHPCodeGenerator    = require("PHPCodeGenerator");
 
     /**
      * Commands IDs

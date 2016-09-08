@@ -229,7 +229,7 @@ define(function (require, exports, module) {
             modifiers.push(visibility);
         }
         var status = this.getModifiersClass(elem);
-        return _.union(modifiers, status);
+        return _.union(status, modifiers);
     };
 
     /**
@@ -265,7 +265,7 @@ define(function (require, exports, module) {
      * @param {type.Model} elem
      * @return {Array}
      */
-    PHPCodeGenerator.prototype.getNamespaces = function (elem) {
+    PHPCodeGenerator.prototype.getNamespaces = function (elem, parentClass) {
         var _namespace = [];
         var _parent = [];
         if (elem._parent instanceof type.UMLPackage && !(elem._parent instanceof type.UMLModel)) {
@@ -275,6 +275,55 @@ define(function (require, exports, module) {
 
         return _.union(_parent, _namespace);
     };
+
+    PHPCodeGenerator.prototype.getNamespacedInterfaces = function (elements, parentClass) {
+        var i, len, namespace;
+        var namespacedInterfaces = [];
+        for (i = 0, len = elements.length; i < len; i++) {
+            namespace = _.map(this.getNamespaces(elements[i]), function (e) { return e; }).join(SEPARATE_NAMESPACE);
+            if (namespace == parentClass) {
+                namespace = "";
+            }else if (namespace == "PHP") {
+                namespace = SEPARATE_NAMESPACE;
+            }
+            else {
+                namespace = SEPARATE_NAMESPACE + namespace + SEPARATE_NAMESPACE;
+            }
+            namespacedInterfaces.push(namespace + elements[i].name);
+        }
+        return namespacedInterfaces;
+    };
+
+    PHPCodeGenerator.prototype.getNamespacedExtends = function (elem, parentClass) {
+        var namespace = this.getNamespaces(elem).join(SEPARATE_NAMESPACE);
+
+        if (namespace == parentClass) {
+            namespace = "";
+        }else if (namespace == "PHP") {
+            namespace = SEPARATE_NAMESPACE;
+        }
+        else {
+            namespace = SEPARATE_NAMESPACE + namespace + SEPARATE_NAMESPACE;
+        }
+        return namespace + elem.name;
+    };
+
+    PHPCodeGenerator.prototype.matchNamespaces = function (compareNamespace, matchNamespace) {
+        var i, len;
+        var matchCount = 0;
+        if (compareNamespace.length > matchNamespace.length) {
+            return 0;
+        }
+        for (i = 0, len = compareNamespace.length; i < len; i++) {
+            if (compareNamespace[i] !== matchNamespace[i]) {
+                return 0;
+            }
+            else {
+                i++
+            }
+        }
+        return i;
+    }
 
     /**
      * Return type expression
@@ -287,7 +336,7 @@ define(function (require, exports, module) {
         var _document = (document !== undefined) ? 0 : 1;
 
         if (elem === null) {
-            return _type;
+            return "";
         }
 
         // type name
@@ -324,6 +373,7 @@ define(function (require, exports, module) {
                 }
             }
         }
+
         return _type;
     };
 
@@ -409,9 +459,8 @@ define(function (require, exports, module) {
                 if (visibility) {
                     terms.push(visibility);
                 }
-                terms.push("function __construct()");
+                terms.push("function __construct() {");
                 codeWriter.writeLine(terms.join(" "));
-                codeWriter.writeLine("{");
                 codeWriter.writeLine("}");
             }
         }
@@ -446,6 +495,9 @@ define(function (require, exports, module) {
             // initial value
             if (elem.defaultValue && elem.defaultValue.length > 0) {
                 terms.push("= " + elem.defaultValue);
+            }
+            if (elem.defaultValue == "array") {
+                terms.push("()");
             }
             codeWriter.writeLine(terms.join(" ") + ";");
         }
@@ -524,7 +576,7 @@ define(function (require, exports, module) {
                     if (options.phpStrictMode && this.isAllowedTypeHint(type)) {
                         if (type.split("\\").length - 1 > 1) {
                             if(SEPARATE_NAMESPACE+this.namespace != type){
-                            	codeWriter.writeLineInSection("use " + type.replace(/^\\+/, "") + ";", "uses");
+                                codeWriter.writeLineInSection("use " + type.replace(/^\\+/, "") + ";", "uses");
                             }
                             typeHint = typeHint.replace(/^.*\\+/, "");
                         }
@@ -539,8 +591,8 @@ define(function (require, exports, module) {
             }
 
             var functionName = elem.name + "(" + paramTerms.join(", ") + ")";
-            if (options.phpReturnType) {
-                functionName = functionName + ':' + this.getType(returnParam, 1);
+            if (options.phpReturnType && this.isAllowedTypeHint(this.getType(returnParam, 1))) {
+                functionName = functionName + ' : ' + this.getType(returnParam, 1);
             }
             terms.push(functionName);
 
@@ -548,8 +600,8 @@ define(function (require, exports, module) {
             if (skipBody === true || _.contains(_modifiers, "abstract")) {
                 codeWriter.writeLine(terms.join(" ") + ";");
             } else {
+                terms.push("{");
                 codeWriter.writeLine(terms.join(" "));
-                codeWriter.writeLine("{");
                 codeWriter.indent();
 
                 //specification
@@ -562,7 +614,7 @@ define(function (require, exports, module) {
                     if (returnParam) {
                         var returnType = this.getType(returnParam, 1);
                         if (returnType === "boolean" || returnType === "bool") {
-                            codeWriter.writeLine("return false;");
+                            codeWriter.writeLine("return FALSE;");
                         } else if (returnType === "int" || returnType === "long" || returnType === "short" || returnType === "byte") {
                             codeWriter.writeLine("return 0;");
                         } else if (returnType === "float" || returnType === "double") {
@@ -573,6 +625,8 @@ define(function (require, exports, module) {
                             codeWriter.writeLine('return "";');
                         } else if (returnType === "array") {
                             codeWriter.writeLine("return array();");
+                        } else if (returnType === "mixed") {
+                            codeWriter.writeLine("return; /*mixed return value*/")
                         } else {
                             codeWriter.writeLine("return null;");
                         }
@@ -614,25 +668,24 @@ define(function (require, exports, module) {
         terms.push("class");
         terms.push(elem.name);
 
+        // Current namespace
+        var currentNamespace = this.getNamespaces(elem).join(SEPARATE_NAMESPACE);
+
         // Extends
         var _extends = this.getSuperClasses(elem);
         var _superClass;
         if (_extends.length > 0) {
             _superClass = _extends[0];
-            terms.push("extends " + _superClass.name);
+            terms.push("extends " + this.getNamespacedExtends(_superClass, currentNamespace));
         }
 
         // Implements
         var _implements = this.getSuperInterfaces(elem);
         if (_implements.length > 0) {
-            terms.push("implements " + _.map(_implements, function (e) {
-                console.log(e);
-                return e.name;
-            }).join(", "));
+            terms.push("implements " + this.getNamespacedInterfaces(_implements, currentNamespace).join(", "));
         }
-
+        terms.push("{");
         codeWriter.writeLine(terms.join(" "));
-        codeWriter.writeLine("{");
         codeWriter.indent();
 
         // Constructor
@@ -899,6 +952,8 @@ define(function (require, exports, module) {
             // case "string":
             case "resource":
             case "void":
+            case "mixed":
+            case "":
                 return false;
             default:
                 return true;
