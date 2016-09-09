@@ -496,9 +496,6 @@ define(function (require, exports, module) {
             if (elem.defaultValue && elem.defaultValue.length > 0) {
                 terms.push("= " + elem.defaultValue);
             }
-            if (elem.defaultValue == "array") {
-                terms.push("()");
-            }
             codeWriter.writeLine(terms.join(" ") + ";");
         }
     };
@@ -626,9 +623,9 @@ define(function (require, exports, module) {
                         } else if (returnType === "array") {
                             codeWriter.writeLine("return array();");
                         } else if (returnType === "mixed") {
-                            codeWriter.writeLine("return; /*mixed return value*/")
+                            codeWriter.writeLine("return; /*mixed return value*/");
                         } else {
-                            codeWriter.writeLine("return null;");
+                            codeWriter.writeLine("return NULL;");
                         }
                     }
                 }
