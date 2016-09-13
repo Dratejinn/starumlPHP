@@ -619,7 +619,7 @@ define(function (require, exports, module) {
                         } else if (returnType === "char") {
                             codeWriter.writeLine("return '0';");
                         } else if (returnType === "string") {
-                            codeWriter.writeLine('return "";');
+                            codeWriter.writeLine('return \'\';');
                         } else if (returnType === "array") {
                             codeWriter.writeLine("return array();");
                         } else if (returnType === "mixed") {
